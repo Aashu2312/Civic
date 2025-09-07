@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Dashboard</title>
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet Search Plugins -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet-control-geocoder@1.13.0/dist/Control.Geocoder.css"
+    />
+    <script src="https://unpkg.com/leaflet-control-geocoder@1.13.0/dist/Control.Geocoder.js"></script>
+
+    <!-- Leaflet MarkerCluster Plugin -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+    />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        display: flex;
+        font-family: Arial, sans-serif;
+        background-color: #ffffff;
+        color: #ffffff;
+      }
+
+      .sidebar {
+        width: 300px;
+        height: 100vh;
+        background-color: #0d0d0d;
+        padding: 20px;
+        border-right: 2px solid #cccccc;
+        overflow-y: auto;
+      }
+      .sidebar h2 {
+        margin-bottom: 15px;
+        color: #66ccff;
+      }
+      .stats {
+        background-color: #121119;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .stats ul {
+        list-style-position: inside;
+        padding-left: 0;
+        margin: 0;
+      }
+      .stats p {
+        margin: 5px 0;
+      }
+      .stats input {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        border: 1px solid #cccccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        color: #000000;
+      }
+      .map-container {
+        flex: 1;
+        height: 100vh;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+      .footer {
+        text-align: center;
+        margin-top: 15px;
+        font-size: 12px;
+      }
+
+      #locationChart {
+        width: 100% !important;
+        height: 220px !important;
+      }
+
+      /* ✅ Satellite toggle */
+      .leaflet-control-satellite {
+        background: white;
+        border: 2px solid #ccc;
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      .leaflet-control-satellite:hover {
+        background: #f0f0f0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <h2>Live Dashboard</h2>
+
+      <div class="stats">
+        <h3>Real-time Stats</h3>
+        <p>🟢 Active Locations: <b id="locationCount">0</b></p>
+        <p>📍 Last Update: <b id="lastUpdate">Loading...</b></p>
+      </div>
+
+      <div class="stats">
+        <h3>Problem Areas</h3>
+        <input type="text" id="cityFilter" placeholder="Filter by name..." />
+        <ul id="topCities">
+          <li>Loading...</li>
+        </ul>
+      </div>
+
+      <div class="stats">
+        <h3>Location Distribution</h3>
+        <canvas id="locationChart"></canvas>
+      </div>
+
+      <div class="footer">Designed with ❤ using Leaflet.js</div>
+    </div>
+
+    <div class="map-container">
+      <div id="map"></div>
+    </div>
+
+    <script>
+      // Initialize map
+      const map = L.map("map").setView([23.349527, 85.329445], 14);
+
+      // Base layers
+      const street = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution: "&copy; OpenStreetMap contributors",
+          maxZoom: 20,
+        }
+      ).addTo(map);
+
+      const satellite = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 19, attribution: "Tiles © Esri" }
+      );
+
+      // ✅ Satellite toggle
+      const SatelliteToggle = L.Control.extend({
+        options: { position: "bottomright" },
+        onAdd: function () {
+          const btn = L.DomUtil.create("div", "leaflet-control-satellite");
+          btn.innerHTML = "🛰";
+          let isSatellite = false;
+          btn.onclick = function () {
+            if (!isSatellite) {
+              map.removeLayer(street);
+              map.addLayer(satellite);
+              btn.innerHTML = "🌍";
+              isSatellite = true;
+            } else {
+              map.removeLayer(satellite);
+              map.addLayer(street);
+              btn.innerHTML = "🛰";
+              isSatellite = false;
+            }
+          };
+          return btn;
+        },
+      });
+      map.addControl(new SatelliteToggle());
+
+      // Custom marker
+      const customIcon = L.icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+        iconSize: [35, 35],
+        iconAnchor: [17, 35],
+        popupAnchor: [0, -35],
+      });
+
+      const markers = L.markerClusterGroup();
+
+      // Sample locations
+      let locations = [
+        {
+          name: "Pothole",
+          lat: 23.370027,
+          lng: 85.325039,
+          info: "Large Pothole near Kanke Road.",
+        },
+        {
+          name: "Garbage Overflow",
+          lat: 23.373533,
+          lng: 85.323813,
+          info: "Garbage bin at National gali.",
+        },
+        {
+          name: "Streetlight Issue",
+          lat: 23.34485,
+          lng: 85.31735,
+          info: "Streetlight not working at GEL Church.",
+        },
+        {
+          name: "Pothole",
+          lat: 23.355,
+          lng: 85.327,
+          info: "Pothole near Railway Station.",
+        },
+        {
+          name: "Pothole",
+          lat: 23.365,
+          lng: 85.335,
+          info: "Pothole near Morabadi Ground.",
+        },
+        {
+          name: "Broken Pipe",
+          lat: 23.35,
+          lng: 85.32,
+          info: "Pipe burst near Doranda.",
+        },
+        {
+          name: "Traffic Jam",
+          lat: 23.36,
+          lng: 85.33,
+          info: "Heavy congestion at Harmu Chowk.",
+        },
+      ];
+
+      // Update dashboard + chart
+      function updateDashboard(data) {
+        markers.clearLayers();
+
+        data.forEach((loc) => {
+          const marker = L.marker([loc.lat, loc.lng], {
+            icon: customIcon,
+          }).bindPopup(
+            `<b>${loc.name}</b><br>${loc.info}<br><small>${loc.lat.toFixed(
+              5
+            )}, ${loc.lng.toFixed(5)}</small>`
+          );
+          markers.addLayer(marker);
+        });
+        map.addLayer(markers);
+
+        document.getElementById("locationCount").innerText = data.length;
+        document.getElementById("lastUpdate").innerText =
+          new Date().toLocaleTimeString();
+
+        // Top list
+        const topCitiesList = document.getElementById("topCities");
+        topCitiesList.innerHTML = "";
+        data.slice(0, 5).forEach((loc) => {
+          const li = document.createElement("li");
+          li.textContent = loc.name;
+          topCitiesList.appendChild(li);
+        });
+
+        // Chart
+        // Count occurrences
+        const counts = {};
+        data.forEach((loc) => {
+          counts[loc.name] = (counts[loc.name] || 0) + 1;
+        });
+
+        // Chart data
+        const chartData = {
+          labels: Object.keys(counts),
+          datasets: [
+            {
+              label: "Reported Issues",
+              data: Object.values(counts),
+              backgroundColor: [
+                "rgba(255, 99, 132, 0.6)",
+                "rgba(54, 162, 235, 0.6)",
+                "rgba(255, 206, 86, 0.6)",
+                "rgba(75, 192, 192, 0.6)",
+                "rgba(153, 102, 255, 0.6)",
+              ],
+              borderColor: "#333",
+              borderWidth: 1,
+            },
+          ],
+        };
+        // Render chart
+        const ctx = document.getElementById("locationChart").getContext("2d");
+        new Chart(ctx, {
+          type: "bar",
+          data: chartData,
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } },
+          },
+        });
+        // Fit map
+        if (data.length > 0) {
+          const bounds = L.latLngBounds(data.map((loc) => [loc.lat, loc.lng]));
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+        }
+      }
+
+      // Fake live fetch
+      async function fetchLiveData() {
+        const newLocations = [];
+        locations = [...locations, ...newLocations];
+        // remove duplicates
+        locations = locations.filter(
+          (loc, i, self) =>
+            i === self.findIndex((l) => l.lat === loc.lat && l.lng === loc.lng)
+        );
+        updateDashboard(locations);
+      }
+
+      // Search filter
+      document
+        .getElementById("cityFilter")
+        .addEventListener("input", function (e) {
+          const searchTerm = e.target.value.toLowerCase();
+          const filtered = locations.filter((loc) =>
+            loc.name.toLowerCase().includes(searchTerm)
+          );
+          updateDashboard(filtered);
+        });
+
+      // Add geocoder
+      L.Control.geocoder().addTo(map);
+
+      // Initial
+      updateDashboard(locations);
+      fetchLiveData();
+      setInterval(fetchLiveData, 30000);
+    </script>
+  </body>
+</html>

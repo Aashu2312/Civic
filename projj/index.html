@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civic Issue Reporter</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+  </head>
+  <body>
+    <!-- Navigation Header -->
+    <header class="header">
+      <div class="container">
+        <div class="nav-container">
+          <div class="logo">
+            <h2>Civic Reporter</h2>
+          </div>
+          <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="report">
+              Report Issue
+            </button>
+            <button class="nav-tab" data-tab="map">Map View</button>
+            <button class="nav-tab" data-tab="admin">Admin Dashboard</button>
+          </nav>
+          <div class="auth-section">
+            <button id="loginBtn" class="btn btn--secondary btn--sm">
+              Admin Login
+            </button>
+            <button id="logoutBtn" class="btn btn--secondary btn--sm hidden">
+              Logout
+            </button>
+            <span id="userStatus" class="user-status hidden">Admin</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="main-content">
+      <div class="container">
+        <!-- Report Issue Section -->
+        <section id="reportSection" class="section active">
+          <div class="section-header">
+            <h1>Report a Civic Issue</h1>
+            <p>Help improve your community by reporting civic issues</p>
+          </div>
+
+          <div class="report-container">
+            <form id="issueForm" class="issue-form">
+              <div class="form-group">
+                <label class="form-label" for="issueTitle">Issue Title</label>
+                <input
+                  type="text"
+                  id="issueTitle"
+                  class="form-control"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="issueDescription"
+                  >Description</label
+                >
+                <textarea
+                  id="issueDescription"
+                  class="form-control"
+                  rows="4"
+                  required
+                ></textarea>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="issueCategory">Category</label>
+                  <select id="issueCategory" class="form-control" required>
+                    <option value="">Select Category</option>
+                    <option value="pothole">Pothole</option>
+                    <option value="streetlight">Street Light</option>
+                    <option value="sanitation">Sanitation</option>
+                    <option value="infrastructure">Infrastructure</option>
+                    <option value="water">Water Issues</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="issuePriority">Priority</label>
+                  <select id="issuePriority" class="form-control" required>
+                    <option value="">Select Priority</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="issueLocation">Location</label>
+                <input
+                  type="text"
+                  id="issueLocation"
+                  class="form-control"
+                  required
+                />
+                <button
+                  type="button"
+                  id="detectLocationBtn"
+                  class="btn btn--secondary btn--sm mt-8"
+                >
+                  Detect Current Location
+                </button>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="issuePhoto"
+                  >Photo (Optional)</label
+                >
+                <input
+                  type="file"
+                  id="issuePhoto"
+                  class="form-control"
+                  accept="image/*"
+                />
+                <div id="photoPreview" class="photo-preview hidden"></div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="reporterEmail">Your Email</label>
+                <input
+                  type="email"
+                  id="reporterEmail"
+                  class="form-control"
+                  required
+                />
+              </div>
+
+              <button type="submit" class="btn btn--primary btn--full-width">
+                Submit Report
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- Map View Section -->
+        <section id="mapSection" class="section">
+          <div class="section-header">
+            <h1>Issue Map</h1>
+            <p>View all reported issues on the interactive map</p>
+          </div>
+
+          <div class="map-container">
+            <div class="map-controls">
+              <div class="filter-controls">
+                <span class="filter-label">Filter by Category:</span>
+                <button class="filter-btn active" data-category="all">
+                  All
+                </button>
+                <button class="filter-btn" data-category="pothole">
+                  Potholes
+                </button>
+                <button class="filter-btn" data-category="streetlight">
+                  Street Lights
+                </button>
+                <button class="filter-btn" data-category="sanitation">
+                  Sanitation
+                </button>
+                <button class="filter-btn" data-category="infrastructure">
+                  Infrastructure
+                </button>
+                <button class="filter-btn" data-category="water">
+                  Water Issues
+                </button>
+              </div>
+              <div class="legend">
+                <span class="legend-item"
+                  ><span class="legend-color submitted"></span>Submitted</span
+                >
+                <span class="legend-item"
+                  ><span class="legend-color in-progress"></span>In
+                  Progress</span
+                >
+                <span class="legend-item"
+                  ><span class="legend-color resolved"></span>Resolved</span
+                >
+              </div>
+            </div>
+            <div id="map" class="map"></div>
+          </div>
+        </section>
+
+        <!-- Admin Dashboard Section -->
+        <section id="adminSection" class="section">
+          <div class="admin-guard hidden">
+            <div class="login-form">
+              <h2>Admin Login</h2>
+              <form id="loginForm">
+                <div class="form-group">
+                  <label class="form-label" for="adminEmail">Email</label>
+                  <input
+                    type="email"
+                    id="adminEmail"
+                    class="form-control"
+                    value="admin@civic.gov"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="adminPassword">Password</label>
+                  <input
+                    type="password"
+                    id="adminPassword"
+                    class="form-control"
+                    value="admin123"
+                    required
+                  />
+                </div>
+                <button type="submit" class="btn btn--primary btn--full-width">
+                  Login
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="admin-content hidden">
+            <div class="section-header">
+              <h1>Admin Dashboard</h1>
+              <p>Manage civic issues and track resolution progress</p>
+            </div>
+
+            <div class="dashboard-stats">
+              <div class="stat-card">
+                <h3 id="totalIssues">0</h3>
+                <p>Total Issues</p>
+              </div>
+              <div class="stat-card">
+                <h3 id="pendingIssues">0</h3>
+                <p>Pending</p>
+              </div>
+              <div class="stat-card">
+                <h3 id="inProgressIssues">0</h3>
+                <p>In Progress</p>
+              </div>
+              <div class="stat-card">
+                <h3 id="resolvedIssues">0</h3>
+                <p>Resolved</p>
+              </div>
+            </div>
+
+            <div class="admin-controls">
+              <div class="search-filter">
+                <input
+                  type="text"
+                  id="searchIssues"
+                  class="form-control"
+                  placeholder="Search issues..."
+                />
+                <select id="filterStatus" class="form-control">
+                  <option value="">All Status</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+                <select id="filterCategory" class="form-control">
+                  <option value="">All Categories</option>
+                  <option value="pothole">Pothole</option>
+                  <option value="streetlight">Street Light</option>
+                  <option value="sanitation">Sanitation</option>
+                  <option value="infrastructure">Infrastructure</option>
+                  <option value="water">Water Issues</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="issues-table-container">
+              <table class="issues-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Location</th>
+                    <th>Assigned To</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="issuesTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Issue Detail Modal -->
+    <div id="issueModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modalTitle">Issue Details</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Issue Modal -->
+    <div id="editModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Edit Issue</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="editForm">
+            <div class="form-group">
+              <label class="form-label" for="editStatus">Status</label>
+              <select id="editStatus" class="form-control">
+                <option value="submitted">Submitted</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editAssigned">Assigned To</label>
+              <select id="editAssigned" class="form-control">
+                <option value="Public Works">Public Works</option>
+                <option value="Electrical Dept">Electrical Dept</option>
+                <option value="Sanitation">Sanitation</option>
+                <option value="Water Dept">Water Dept</option>
+                <option value="Transportation">Transportation</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editPriority">Priority</label>
+              <select id="editPriority" class="form-control">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn--primary">Update Issue</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notifications" class="notifications"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
